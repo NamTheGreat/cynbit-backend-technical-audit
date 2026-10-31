@@ -1,0 +1,162 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ApplicationStatus {
+  NEW
+  UNDER_REVIEW
+  ASSESSMENT_ACTIVE
+  ASSESSMENT_SUBMITTED
+  ASSESSMENT_EXPIRED
+  INTERVIEW
+  OFFERED
+  REJECTED
+}
+
+enum RoleTrack {
+  ENGINEERING
+  AI_ML
+  DESIGN
+  GROWTH_MARKETING
+  BUSINESS_HR
+}
+
+model Candidate {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  publicReferenceCode String                 @unique // Non-secret human-readable code, e.g., "CYN-2026-8F4A2C"
+  email               String                 @unique
+  fullName            String
+  phone               String
+  whatsappNumber      String?
+  dateOfBirth         DateTime               @db.Date
+  gender              String
+  currentCity         String
+  permanentAddress    String
+  portfolioUrl        String
+  linkedinUrl         String
+  githubOrBehanceUrl  String?
+  noticePeriod        String
+  technicalSkills     String[]
+  qualifications      Qualification[]
+  applications        RoleApplication[]
+  magicLinkTokens     PortalMagicLinkToken[]
+  supportTickets      SupportTicket[]
+  createdAt           DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime               @updatedAt @db.Timestamptz(3)
+
+  @@index([email])
+}
+
+model Qualification {
+  id                   String    @id @default(uuid()) @db.Uuid
+  candidateId          String    @db.Uuid
+  candidate            Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  highestQualification String
+  degree               String
+  specialization       String
+  institution          String
+  graduationYear       Int
+  educationStatus      String
+  scoreSystem          String
+  scoreValue           Decimal   @db.Decimal(5, 2)
+}
+
+model RoleApplication {
+  id                      String                  @id @default(uuid()) @db.Uuid
+  candidateId             String                  @db.Uuid
+  candidate               Candidate               @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  roleSlug                String                  // e.g., "backend-developer-intern"
+  roleTitle               String                  // e.g., "Backend Developer Intern"
+  roleTrack               RoleTrack               @default(ENGINEERING)
+  cycleCode               String                  @default("2026-Q4")
+  status                  ApplicationStatus       @default(NEW)
+  whyCynbitNarrative      String
+  assessmentTitle         String?
+  assessmentAssignedAt    DateTime?               @db.Timestamptz(3)
+  assessmentDeadlineAt    DateTime?               @db.Timestamptz(3)
+  assessmentGraceMinutes  Int                     @default(15)
+  submittedAt             DateTime?               @db.Timestamptz(3)
+  executionNotes          String?
+  deliverables            AssessmentDeliverable[]
+  createdAt               DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime                @updatedAt @db.Timestamptz(3)
+
+  // Enforces 1:N relational deduplication per hiring cycle (Remediates DATA-01)
+  @@unique([candidateId, roleSlug, cycleCode], name: "uq_candidate_role_cycle")
+  @@index([candidateId, status])
+  @@index([status, assessmentDeadlineAt])
+}
+
+model AssessmentDeliverable {
+  id            String          @id @default(uuid()) @db.Uuid
+  applicationId String          @db.Uuid
+  application   RoleApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  slotIndex     Int             // 0 = Primary Deliverable, 1..4 = Additional Deliverables
+  url           String
+  hostname      String
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+
+  @@unique([applicationId, slotIndex])
+}
+
+model PortalMagicLinkToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  candidateId String    @db.Uuid
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique // SHA-256 hex digest of 32-byte CSPRNG raw token (Remediates SEC-01 & SEC-02)
+  expiresAt   DateTime  @db.Timestamptz(3)
+  consumedAt  DateTime? @db.Timestamptz(3)
+  createdIp   String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([candidateId, expiresAt])
+}
+
+model SupportTicket {
+  id          String    @id @default(uuid()) @db.Uuid
+  candidateId String    @db.Uuid
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  category    String
+  subject     String
+  description String
+  status      String    @default("OPEN")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([candidateId, status])
+}
+
+model TransactionalOutbox {
+  id            String    @id @default(uuid()) @db.Uuid
+  eventType     String    // e.g., "APPLICATION_CONFIRMATION_EMAIL", "ASSESSMENT_DISPATCH_EMAIL"
+  aggregateId   String    @db.Uuid
+  payloadJson   Json
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @db.Timestamptz(3)
+  processedAt   DateTime? @db.Timestamptz(3)
+  lastError     String?
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([processedAt, nextAttemptAt])
+}
+
+model BlogPost {
+  id                 String   @id @default(uuid()) @db.Uuid
+  slug               String   @unique
+  title              String
+  excerpt            String
+  content            String
+  categoryName       String
+  categorySlug       String
+  readingTimeMinutes Int      @default(5)
+  coverImageUrl      String
+  published          Boolean  @default(true)
+  publishedAt        DateTime @default(now()) @db.Timestamptz(3)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([published, categorySlug, publishedAt])
+}

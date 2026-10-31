@@ -1,0 +1,27 @@
+{
+  "name": "cynbit-backend-technical-audit",
+  "version": "1.0.0",
+  "description": "Comprehensive Backend Technical Audit, Telemetry Deconstruction, and Production Reference Architecture for Cynbit Technologies",
+  "author": "Naman Kalia <namankalia1904@gmail.com>",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.4.1",
+    "ioredis": "^5.5.0",
+    "next": "^15.1.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "prisma": "^6.4.1",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
